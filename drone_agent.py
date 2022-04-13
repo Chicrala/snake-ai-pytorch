@@ -2,7 +2,7 @@ import torch
 import random
 import numpy as np
 from collections import deque
-from game import SnakeGameAI, Direction, Point
+from drone_game_simple import DroneGameAI, Direction, Point
 from model import Linear_QNet, QTrainer
 from helper import plot
 from os import environ
@@ -20,7 +20,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(11, 256, 3)
+        self.model = Linear_QNet(16, 256, 3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
 
@@ -35,6 +35,7 @@ class Agent:
         dir_r = game.direction == Direction.RIGHT
         dir_u = game.direction == Direction.UP
         dir_d = game.direction == Direction.DOWN
+        #dir_s = game.direction == Direction.STOP
 
         state = [
             # Danger straight
@@ -65,7 +66,15 @@ class Agent:
             game.food.x < game.head.x,  # food left
             game.food.x > game.head.x,  # food right
             game.food.y < game.head.y,  # food up
-            game.food.y > game.head.y  # food down
+            game.food.y > game.head.y,  # food down
+
+            # Fuel.
+            game.fuel,
+            # Mother base location.
+            game.head.x < 675,  # MB left
+            game.head.x > 675,  # MB right
+            game.head.y < 370,  # MB up
+            game.head.y > 370  # MB down
             ]
 
         return np.array(state, dtype=int)
@@ -109,7 +118,7 @@ def train():
     total_score = 0
     record = 0
     agent = Agent()
-    game = SnakeGameAI()
+    game = DroneGameAI()
     while True:
         # get old state
         state_old = agent.get_state(game)
