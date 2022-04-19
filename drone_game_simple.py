@@ -63,12 +63,24 @@ class DroneGameAI:
         self.food = None
         self._place_food()
         self.frame_iteration = 0
+        self.distance_to_food = None # Here we add the initial distance to the food
+        self._distance_to_food()
+        #self.reward = 0
 
     def _place_food(self):
         x = random.randint(0,len(HOSPITALS)-1)
         self.food = Point(HOSPITALS[x][0], HOSPITALS[x][1])
         if self.food in self.snake:
             self._place_food()
+
+    def _distance_to_food(self):
+        distance = np.sqrt((self.food.x-self.head.x)**2+(self.food.y-self.head.y)**2)
+        if np.isnan(distance):
+            print(self.food.x,self.head.x,self.food.y,self.head.y)
+            # Set as maximum possible distance.
+            self.distance_to_food = np.sqrt(self.w**2*self.h**2)
+        else:
+            self.distance_to_food = distance
 
     def play_step(self, action):
         self.frame_iteration +=1
@@ -82,7 +94,7 @@ class DroneGameAI:
         self._move(action) # update the head
         self.snake.insert(0, self.head)
 
-        # 3. check if game over
+        # 3. check if a collision happened.
         reward = 0
         game_over = False
 
@@ -96,7 +108,7 @@ class DroneGameAI:
                 and (self.head.y > MOTHER_BASE[1] - BLOCK_SIZE) and (self.head.y < MOTHER_BASE[1] + BLOCK_SIZE*4):
             self.fuel = 100
         else:
-            self.fuel -= .25
+            self.fuel -= .1
 
         if self._out_of_fuel():
             game_over = True
@@ -109,6 +121,24 @@ class DroneGameAI:
             self.score += 1
             reward = 10
             self._place_food()
+            # Recalculate distance?
+            self._distance_to_food()
+
+        else:
+            # Calculate distance to food.
+            distance = np.sqrt((self.food.x - self.head.x)**2 + (self.food.y - self.head.y)**2)
+
+            if not np.isnan(distance):
+                # Didn't hit food but walked in the wrong direction.
+                if distance > self.distance_to_food:
+                    reward = -5
+                # Didn't hit food but walked in the right direction.
+                if distance < self.distance_to_food:
+                    reward = 5
+                    self.distance_to_food = distance
+
+            else:
+                print(self.food.x, self.head.x, self.food.y, self.head.y)
 
         # Trim the snake!
         self.snake.pop()

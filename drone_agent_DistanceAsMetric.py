@@ -63,13 +63,13 @@ class Agent:
             dir_d,
             
             # Distance to food.
-            round(np.sqrt((game.food.x-game.head.x)^2+(game.food.y-game.head.y)^2)),
+            round(np.sqrt((game.food.x-game.head.x)**2+(game.food.y-game.head.y)**2)),
 
             # Fuel.
             game.fuel,
 
             # Mother base location.
-            round(np.sqrt((game.head.x-675)^2+(game.head.y-370)^2))
+            round(np.sqrt((game.head.x-675)**2+(game.head.y-370)**2))
             ]
 
         return np.array(state, dtype=int)
