@@ -65,7 +65,7 @@ class DroneGameAI:
         self.frame_iteration = 0
         self.distance_to_food = None # Here we add the initial distance to the food
         self._distance_to_food()
-        #self.reward = 0
+        self.acc_reward = 0
 
     def _place_food(self):
         x = random.randint(0,len(HOSPITALS)-1)
@@ -98,28 +98,36 @@ class DroneGameAI:
         reward = 0
         game_over = False
 
-        if self.is_collision() or self.frame_iteration > 1000*len(self.snake):
+        # if self.is_collision() or self.frame_iteration > 1000*len(self.snake):
+        if self.is_collision():
             game_over = True
             reward = -10
+            self.acc_reward -= 10
             return reward, game_over, self.score
 
+        #cond = (self.head.x > MOTHER_BASE[0] - BLOCK_SIZE) and (self.head.x < MOTHER_BASE[0] + BLOCK_SIZE*4)\
+        #        and (self.head.y > MOTHER_BASE[1] - BLOCK_SIZE) and (self.head.y < MOTHER_BASE[1] + BLOCK_SIZE*4)
+
+        #self.fuel = 100 if cond else self.fuel-0.1
         # Check if drone is in the MOTHER_BASE and refuel if so.
         if (self.head.x > MOTHER_BASE[0] - BLOCK_SIZE) and (self.head.x < MOTHER_BASE[0] + BLOCK_SIZE*4)\
                 and (self.head.y > MOTHER_BASE[1] - BLOCK_SIZE) and (self.head.y < MOTHER_BASE[1] + BLOCK_SIZE*4):
             self.fuel = 100
         else:
-            self.fuel -= .1
+            self.fuel -= .25
 
         if self._out_of_fuel():
             game_over = True
             reward = -10
+            self.acc_reward -= reward
             return reward, game_over, self.score
 
         # 4. place new food/refuel or just move
         if self.head == self.food:
+            reward = 10 + self.fuel*2
+            self.acc_reward += reward
             self.fuel = 100
             self.score += 1
-            reward = 10
             self._place_food()
             # Recalculate distance?
             self._distance_to_food()
@@ -131,10 +139,13 @@ class DroneGameAI:
             if not np.isnan(distance):
                 # Didn't hit food but walked in the wrong direction.
                 if distance > self.distance_to_food:
-                    reward = -5
+                    reward = -1
+                    self.acc_reward -= 1
+                    #pass
                 # Didn't hit food but walked in the right direction.
                 if distance < self.distance_to_food:
-                    reward = 5
+                    reward = 2
+                    self.acc_reward += 2
                     self.distance_to_food = distance
 
             else:
@@ -179,7 +190,7 @@ class DroneGameAI:
             
         pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
 
-        text = font.render("Score: " + str(self.score)+" Fuel: " + str(self.fuel), True, WHITE)
+        text = font.render(f"Score: {self.score} Fuel: {self.fuel:.2f} Distance: {self.distance_to_food:.2f} Reward: {self.acc_reward}", True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()
         

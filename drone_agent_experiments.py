@@ -1,9 +1,10 @@
+import matplotlib.pyplot as plt
 import torch
 import random
 import numpy as np
 from collections import deque
 from drone_game_simple import DroneGameAI, Direction, Point
-from model import Linear_QNet, QTrainer
+from drone_model_experiments import Deeper_Linear_QNet, QTrainer
 from helper import plot
 from os import environ
 
@@ -20,7 +21,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(16, 256, 3)
+        self.model = Deeper_Linear_QNet(11, 3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
 
@@ -67,17 +68,10 @@ class Agent:
             game.food.x > game.head.x,  # food right
             game.food.y < game.head.y,  # food up
             game.food.y > game.head.y,  # food down
-
-            # Fuel.
-            game.fuel,
-            # Mother base location.
-            game.head.x < 675,  # MB left
-            game.head.x > 675,  # MB right
-            game.head.y < 370,  # MB up
-            game.head.y > 370  # MB down
             ]
 
-        return np.array(state, dtype=int)
+        #return np.array(state, dtype=int)
+        return np.array(state, dtype=float)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) # popleft if MAX_MEMORY is reached
@@ -117,6 +111,16 @@ def train():
     plot_mean_scores = []
     total_score = 0
     record = 0
+
+    plot_rewards = []
+    #plot_mean_rewards = []
+    #total_rewards = 0
+    record_reward = -1000
+
+    # Counter
+    i = 0
+    imax = 300
+
     agent = Agent()
     game = DroneGameAI()
     while True:
@@ -138,21 +142,40 @@ def train():
 
         if done:
             # train long memory, plot result
+            plot_rewards.append(game.acc_reward)
             game.reset()
             agent.n_games += 1
             agent.train_long_memory()
 
             if score > record:
                 record = score
+                #agent.model.save()
+
+            if game.acc_reward > record_reward:
+                record_reward = game.acc_reward
                 agent.model.save()
 
             print('Game', agent.n_games, 'Score', score, 'Record:', record)
 
+            # Calculating the mean score.
             plot_scores.append(score)
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
+
+            #plot_rewards.append(game.acc_reward)
+            # total_rewards += game.acc_reward
+            # mean_reward = total_rewards / agent.n_games
+            # plot_mean_rewards.append(mean_reward)
+
+            # Plotting.
             plot(plot_scores, plot_mean_scores)
+
+            i += 1
+            if i > imax:
+                np.save(f'scores_imax{imax}.npy', plot_scores)
+                np.save(f'rewards_imax{imax}.npy', plot_rewards)
+                break
 
 
 if __name__ == '__main__':
