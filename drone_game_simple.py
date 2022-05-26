@@ -101,8 +101,8 @@ class DroneGameAI:
         # if self.is_collision() or self.frame_iteration > 1000*len(self.snake):
         if self.is_collision():
             game_over = True
-            reward = -10
-            self.acc_reward -= 10
+            reward = -100
+            self.acc_reward += reward
             return reward, game_over, self.score
 
         #cond = (self.head.x > MOTHER_BASE[0] - BLOCK_SIZE) and (self.head.x < MOTHER_BASE[0] + BLOCK_SIZE*4)\
@@ -119,12 +119,12 @@ class DroneGameAI:
         if self._out_of_fuel():
             game_over = True
             reward = -10
-            self.acc_reward -= reward
+            self.acc_reward += reward
             return reward, game_over, self.score
 
         # 4. place new food/refuel or just move
         if self.head == self.food:
-            reward = 10 + self.fuel*2
+            reward = 10 + self.fuel
             self.acc_reward += reward
             self.fuel = 100
             self.score += 1
@@ -140,16 +140,23 @@ class DroneGameAI:
                 # Didn't hit food but walked in the wrong direction.
                 if distance > self.distance_to_food:
                     reward = -1
-                    self.acc_reward -= 1
+                    self.acc_reward += reward
+                    self.distance_to_food = distance
                     #pass
                 # Didn't hit food but walked in the right direction.
                 if distance < self.distance_to_food:
-                    reward = 2
-                    self.acc_reward += 2
+                    reward = 1
+                    self.acc_reward += reward
                     self.distance_to_food = distance
 
             else:
                 print(self.food.x, self.head.x, self.food.y, self.head.y)
+
+        if self.score > 120:
+            game_over = True
+            reward = 1000
+            self.acc_reward += reward
+            return reward, game_over, self.score
 
         # Trim the snake!
         self.snake.pop()
@@ -211,6 +218,7 @@ class DroneGameAI:
 
         x = self.head.x
         y = self.head.y
+
         if self.direction == Direction.RIGHT:
             x += BLOCK_SIZE
         elif self.direction == Direction.LEFT:

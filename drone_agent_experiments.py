@@ -1,27 +1,29 @@
-import matplotlib.pyplot as plt
 import torch
 import random
 import numpy as np
 from collections import deque
 from drone_game_simple import DroneGameAI, Direction, Point
-from drone_model_experiments import Deeper_Linear_QNet, QTrainer
+from drone_model_experiments import QTrainer,Deeper_Linear_QNet #Deeeeper_Linear_QNet ##,Linear_QNet
 from helper import plot
 from os import environ
-
+import pickle
 environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
-LR = 0.0001
+MAX_MEMORY = 1000000#100_000
+BATCH_SIZE = 1000 #1000
+LR = 0.001 #df 0.001
 
 class Agent:
 
     def __init__(self):
         self.n_games = 0
         self.epsilon = 0 # randomness
-        self.gamma = 0.9 # discount rate
+        self.gamma = 0.6#0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Deeper_Linear_QNet(11, 3)
+        #self.model = Linear_QNet(11,256,3)
+        self.model = Deeper_Linear_QNet(9,3)
+        #self.model = Deeeeper_Linear_QNet(9,3)
+        #self.model = LinearRelu(12,3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
 
@@ -62,12 +64,14 @@ class Agent:
             dir_r,
             dir_u,
             dir_d,
+
+            #game.fuel,
             
             # Food location 
-            game.food.x < game.head.x,  # food left
+            #game.food.x < game.head.x,  # food left
             game.food.x > game.head.x,  # food right
             game.food.y < game.head.y,  # food up
-            game.food.y > game.head.y,  # food down
+            #game.food.y > game.head.y,  # food down
             ]
 
         #return np.array(state, dtype=int)
@@ -90,11 +94,12 @@ class Agent:
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
 
-    def get_action(self, state, tradeoff=120):
+    def get_action(self, state,max_score=1):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = tradeoff - self.n_games
+        #self.epsilon = tradeoff - self.n_games
+        self.epsilon = 50*np.exp(-max_score/25)
         final_move = [0,0,0]
-        if random.randint(0, 200) < self.epsilon:
+        if random.randint(0, 100) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
         else:
@@ -115,11 +120,11 @@ def train():
     plot_rewards = []
     #plot_mean_rewards = []
     #total_rewards = 0
-    record_reward = -1000
+    record_reward = -300
 
-    # Counter
+    # Counterhow
     i = 0
-    imax = 300
+    imax = 150
 
     agent = Agent()
     game = DroneGameAI()
@@ -128,7 +133,7 @@ def train():
         state_old = agent.get_state(game)
 
         # get move
-        final_move = agent.get_action(state_old)
+        final_move = agent.get_action(state_old,record)
 
         # perform move and get new state
         reward, done, score = game.play_step(final_move)
@@ -143,19 +148,29 @@ def train():
         if done:
             # train long memory, plot result
             plot_rewards.append(game.acc_reward)
-            game.reset()
             agent.n_games += 1
             agent.train_long_memory()
 
-            if score > record:
+            if score > record and game.acc_reward > record_reward:
                 record = score
-                #agent.model.save()
-
-            if game.acc_reward > record_reward:
                 record_reward = game.acc_reward
-                agent.model.save()
+                # agent.model.save()
+                pickle.dump(agent.model, open("./model/newmodel.sav", "wb"))
 
-            print('Game', agent.n_games, 'Score', score, 'Record:', record)
+
+            elif score > record:
+                record = score
+                # agent.model.save()
+                pickle.dump(agent.model, open("./model/newmodel.sav", "wb"))
+
+            elif game.acc_reward > record_reward:
+                record_reward = game.acc_reward
+                # agent.model.save()
+                pickle.dump(agent.model, open("./model/newmodel.sav", "wb"))
+
+            print('Game', agent.n_games, 'Score', score, 'Record:', record, 'Reward:', game.acc_reward, 'Record:', record_reward)
+
+            game.reset()
 
             # Calculating the mean score.
             plot_scores.append(score)
