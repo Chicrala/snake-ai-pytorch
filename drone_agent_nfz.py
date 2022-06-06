@@ -4,14 +4,14 @@ import numpy as np
 from collections import deque
 #from drone_game_simple import DroneGameAI, Direction, Point
 from drone_game_nfz import DroneGameAI, Direction, Point
-from drone_model_experiments import QTrainer,Deeper_Linear_QNet #Deeeeper_Linear_QNet ##,Linear_QNet
+from drone_model_experiments import QTrainer,Deeper_Linear_QNet#Deeeeper_Linear_QNet# ##,Linear_QNet
 from helper import plot
 from os import environ
 import pickle
 environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 MAX_MEMORY = 1000000#100_000
-BATCH_SIZE = 5000 #1000
+BATCH_SIZE = 1000 #1000
 LR = 0.001 #df 0.001
 BLOCK_SIZE = 5 # 20
 
@@ -23,8 +23,8 @@ class Agent:
         self.gamma = 0.7#0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
         #self.model = Linear_QNet(11,256,3)
-        self.model = Deeper_Linear_QNet(9,3)
-        #self.model = Deeeeper_Linear_QNet(9,3)
+        self.model = Deeper_Linear_QNet(10,3)
+        #self.model = Deeeeper_Linear_QNet(10,3)
         #self.model = LinearRelu(12,3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
@@ -68,7 +68,11 @@ class Agent:
             dir_d,
 
             #game.fuel,
-            
+            game.danger,
+            #game.distance_to_heyshan,
+            #game.distance_to_cark,
+            #game.distance_to_barrow,
+            #game.distance_to_food,
             # Food location 
             #game.food.x < game.head.x,  # food left
             game.food.x > game.head.x,  # food right
@@ -76,8 +80,8 @@ class Agent:
             #game.food.y > game.head.y,  # food down
             ]
 
-        #return np.array(state, dtype=int)
-        return np.array(state, dtype=float)
+        return np.array(state, dtype=int)
+        #return np.array(state, dtype=float)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) # popleft if MAX_MEMORY is reached
@@ -126,7 +130,7 @@ def train():
 
     # Counterhow
     i = 0
-    imax = 150
+    imax = 300
 
     agent = Agent()
     game = DroneGameAI()

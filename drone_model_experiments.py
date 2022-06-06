@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import os
+import copy
+import numpy as np
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -34,16 +36,79 @@ class Deeper_Linear_QNet(nn.Module):
         self.linear3 = nn.Linear(input_size*4, input_size*2)
         self.linear4 = nn.Linear(input_size*2, input_size)
         self.linear5 = nn.Linear(input_size, output_size)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         x = F.relu(self.linear1(x))
         x = self.linear2(x)
+        #x = self.relu(x)
         x = self.linear3(x)
+        #x = self.relu(x)
         x = self.linear4(x)
+        #x = self.relu(x)
         x = self.linear5(x)
         return x
 
     def save(self, file_name='drone_model_linear.pth'):
+        model_folder_path = './model'
+        if not os.path.exists(model_folder_path):
+            os.makedirs(model_folder_path)
+
+        file_name = os.path.join(model_folder_path, file_name)
+        torch.save(self.state_dict(), file_name)
+
+class DVision(nn.Module):
+    def __init__(self,input_dim,output_dim):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels=input_dim, out_channels=32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
+        self.relu = nn.ReLU()
+        self.flatten = nn.Flatten()
+        self.linear1 = nn.Linear(10528, 512)
+        self.linear2 = nn.Linear(512, output_dim)
+
+        '''
+        self.online = nn.Sequential(
+            nn.Conv2d(in_channels=input_dim, out_channels=32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3136, 512),
+            nn.ReLU(),
+            nn.Linear(512, output_dim),
+        )
+        
+
+        self.target = copy.deepcopy(self.online)
+        '''
+    def forward(self,x):
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.conv3(x)
+        x = self.relu(x)
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        return x
+
+        # Q_target parameters are frozen.
+        #for p in self.target.parameters():
+            #p.requires_grad = False
+    '''
+    def forward(self, input, model):
+        if model == "online":
+            return self.online(input)
+        elif model == "target":
+            return self.target(input)
+    '''
+    def save(self, file_name='drone_model_2d.pth'):
         model_folder_path = './model'
         if not os.path.exists(model_folder_path):
             os.makedirs(model_folder_path)
@@ -114,6 +179,50 @@ class LinearRelu(nn.Module):
         file_name = os.path.join(model_folder_path, file_name)
         torch.save(self.state_dict(), file_name)
 
+'''
+class QTrainer:
+    def __init__(self, model, lr, gamma):
+        self.lr = lr
+        self.gamma = gamma
+        self.model = model
+        # self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
+        self.optimizer = optim.RMSprop(model.parameters(), lr=self.lr)
+        self.criterion = nn.MSELoss()
+
+    def train_step(self, state, action, reward, next_state, done):
+        state = torch.tensor(state, dtype=torch.float)
+        next_state = torch.tensor(next_state, dtype=torch.float)
+        action = torch.tensor(action, dtype=torch.long)
+        reward = torch.tensor(reward, dtype=torch.float)
+        # (n, x)
+        if len(state.shape) == 1:
+            # (1, x)
+            state = torch.unsqueeze(state, 0)
+            next_state = torch.unsqueeze(next_state, 0)
+            action = torch.unsqueeze(action, 0)
+            reward = torch.unsqueeze(reward, 0)
+            done = (done,)
+
+        # 1: predicted Q values with current state
+        pred = self.model(state)
+
+        target = pred.clone()
+        for idx in range(len(done)):
+            Q_new = reward[idx]
+            if not done[idx]:
+                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
+
+            target[idx][torch.argmax(action[idx]).item()] = Q_new
+
+        # 2: Q_new = r + y * max(next_predicted Q value) -> only do this if not done
+        # pred.clone()
+        # preds[argmax(action)] = Q_new
+        self.optimizer.zero_grad()
+        loss = self.criterion(target, pred)
+        loss.backward()
+
+        self.optimizer.step()
+'''
 
 class QTrainer:
     def __init__(self, model, lr, gamma):
@@ -130,8 +239,7 @@ class QTrainer:
         action = torch.tensor(action, dtype=torch.long)
         reward = torch.tensor(reward, dtype=torch.float)
         # (n, x)
-
-        if len(state.shape) == 1:
+        if len(state.shape) == 1: #1
             # (1, x)
             state = torch.unsqueeze(state, 0)
             next_state = torch.unsqueeze(next_state, 0)

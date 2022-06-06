@@ -3,15 +3,17 @@ import random
 import numpy as np
 from collections import deque
 #from drone_game_simple import DroneGameAI, Direction, Point
-from drone_game_nfz import DroneGameAI, Direction, Point
-from drone_model_experiments import QTrainer,Deeper_Linear_QNet #Deeeeper_Linear_QNet ##,Linear_QNet
+from drone_game_nfz_vision import DroneGameAI, Direction, Point
+from drone_model_experiments import QTrainer,DVision
 from helper import plot
 from os import environ
 import pickle
+import numpy as np
+
 environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 MAX_MEMORY = 1000000#100_000
-BATCH_SIZE = 5000 #1000
+BATCH_SIZE = 1000 #1000
 LR = 0.001 #df 0.001
 BLOCK_SIZE = 5 # 20
 
@@ -20,64 +22,20 @@ class Agent:
     def __init__(self):
         self.n_games = 0
         self.epsilon = 0 # randomness
-        self.gamma = 0.7#0.9 # discount rate
+        self.gamma = 0.75#0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        #self.model = Linear_QNet(11,256,3)
-        self.model = Deeper_Linear_QNet(9,3)
-        #self.model = Deeeeper_Linear_QNet(9,3)
-        #self.model = LinearRelu(12,3)
+        self.model = DVision(1,3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
 
     def get_state(self, game):
-        head = game.snake[0]
-        point_l = Point(head.x - BLOCK_SIZE, head.y)
-        point_r = Point(head.x + BLOCK_SIZE, head.y)
-        point_u = Point(head.x, head.y - BLOCK_SIZE)
-        point_d = Point(head.x, head.y + BLOCK_SIZE)
-        
-        dir_l = game.direction == Direction.LEFT
-        dir_r = game.direction == Direction.RIGHT
-        dir_u = game.direction == Direction.UP
-        dir_d = game.direction == Direction.DOWN
-        #dir_s = game.direction == Direction.STOP
 
-        state = [
-            # Danger straight
-            (dir_r and game.is_collision(point_r)) or 
-            (dir_l and game.is_collision(point_l)) or 
-            (dir_u and game.is_collision(point_u)) or 
-            (dir_d and game.is_collision(point_d)),
-
-            # Danger right
-            (dir_u and game.is_collision(point_r)) or 
-            (dir_d and game.is_collision(point_l)) or 
-            (dir_l and game.is_collision(point_u)) or 
-            (dir_r and game.is_collision(point_d)),
-
-            # Danger left
-            (dir_d and game.is_collision(point_r)) or 
-            (dir_u and game.is_collision(point_l)) or 
-            (dir_r and game.is_collision(point_u)) or 
-            (dir_l and game.is_collision(point_d)),
-            
-            # Move direction
-            dir_l,
-            dir_r,
-            dir_u,
-            dir_d,
-
-            #game.fuel,
-            
-            # Food location 
-            #game.food.x < game.head.x,  # food left
-            game.food.x > game.head.x,  # food right
-            game.food.y < game.head.y,  # food up
-            #game.food.y > game.head.y,  # food down
-            ]
-
-        #return np.array(state, dtype=int)
-        return np.array(state, dtype=float)
+        state = [game.nfz_maps + 2*game.dronepositionmap + 3*game.foodmap]
+        #print('nfz shape:', np.shape(game.nfz_maps))
+        #print('droneposmap shape:', np.shape(game.dronepositionmap))
+        #print('foodmap shape:', np.shape(game.foodmap))
+        #state = np.stack([game.nfz_maps, game.dronepositionmap, game.foodmap])
+        return state
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done)) # popleft if MAX_MEMORY is reached
@@ -88,7 +46,8 @@ class Agent:
         else:
             mini_sample = self.memory
 
-        states, actions, rewards, next_states, dones = zip(*mini_sample)
+        #states, actions, rewards, next_states, dones = zip(*mini_sample)
+        states, actions, rewards, next_states,dones = map(np.array, zip(*mini_sample))
         self.trainer.train_step(states, actions, rewards, next_states, dones)
         #for state, action, reward, nexrt_state, done in mini_sample:
         #    self.trainer.train_step(state, action, reward, next_state, done)
@@ -96,7 +55,7 @@ class Agent:
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
 
-    def get_action(self, state,max_score=1):
+    def get_action(self, state, max_score=1):
         # random moves: tradeoff exploration / exploitation
         #self.epsilon = tradeoff - self.n_games
         self.epsilon = 50*np.exp(-max_score/20)
@@ -104,11 +63,15 @@ class Agent:
         if random.randint(0, 100) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
+            print('random move >>>>>', move)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
-            move = torch.argmax(prediction).item()
+            #print(prediction)
+            #move = torch.argmax(prediction).item()
+            move = (prediction==torch.max(prediction)).nonzero()[0][1]
             final_move[move] = 1
+            print('real move >>>>>',move)
 
         return final_move
 
@@ -126,7 +89,7 @@ def train():
 
     # Counterhow
     i = 0
-    imax = 150
+    imax = 300
 
     agent = Agent()
     game = DroneGameAI()
