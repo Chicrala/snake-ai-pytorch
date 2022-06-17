@@ -11,7 +11,7 @@ import pickle
 environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 MAX_MEMORY = 1000000#100_000
-BATCH_SIZE = 1000 #1000
+BATCH_SIZE = 10000 #1000
 LR = 0.001 #df 0.001
 BLOCK_SIZE = 5 # 20
 
@@ -20,10 +20,10 @@ class Agent:
     def __init__(self):
         self.n_games = 0
         self.epsilon = 0 # randomness
-        self.gamma = 0.7#0.9 # discount rate
+        self.gamma = 0.6#0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
         #self.model = Linear_QNet(11,256,3)
-        self.model = Deeper_Linear_QNet(10,3)
+        self.model = Deeper_Linear_QNet(15,3)
         #self.model = Deeeeper_Linear_QNet(10,3)
         #self.model = LinearRelu(12,3)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
@@ -44,23 +44,23 @@ class Agent:
 
         state = [
             # Danger straight
-            (dir_r and game.is_collision(point_r)) or 
-            (dir_l and game.is_collision(point_l)) or 
-            (dir_u and game.is_collision(point_u)) or 
-            (dir_d and game.is_collision(point_d)),
+            (dir_r and game.heading_to_danger(point_r)) or
+            (dir_l and game.heading_to_danger(point_l)) or
+            (dir_u and game.heading_to_danger(point_u)) or
+            (dir_d and game.heading_to_danger(point_d)),
 
             # Danger right
-            (dir_u and game.is_collision(point_r)) or 
-            (dir_d and game.is_collision(point_l)) or 
-            (dir_l and game.is_collision(point_u)) or 
-            (dir_r and game.is_collision(point_d)),
+            (dir_u and game.heading_to_danger(point_r)) or
+            (dir_d and game.heading_to_danger(point_l)) or
+            (dir_l and game.heading_to_danger(point_u)) or
+            (dir_r and game.heading_to_danger(point_d)),
 
             # Danger left
-            (dir_d and game.is_collision(point_r)) or 
-            (dir_u and game.is_collision(point_l)) or 
-            (dir_r and game.is_collision(point_u)) or 
-            (dir_l and game.is_collision(point_d)),
-            
+            (dir_d and game.heading_to_danger(point_r)) or
+            (dir_u and game.heading_to_danger(point_l)) or
+            (dir_r and game.heading_to_danger(point_u)) or
+            (dir_l and game.heading_to_danger(point_d)),
+
             # Move direction
             dir_l,
             dir_r,
@@ -69,6 +69,10 @@ class Agent:
 
             #game.fuel,
             game.danger,
+            game.head.x,
+            game.head.y,
+            game.food.x,
+            game.food.y,
             #game.distance_to_heyshan,
             #game.distance_to_cark,
             #game.distance_to_barrow,
@@ -78,8 +82,14 @@ class Agent:
             game.food.x > game.head.x,  # food right
             game.food.y < game.head.y,  # food up
             #game.food.y > game.head.y,  # food down
+            #game.head.x > 575,  # NFZ Heyshan right
+            #game.head.y < 750,  # NFZ Heyshan up
+            #game.head.x > 500,  # NFZ Cark right
+            #game.head.y < 400,  # NFZ Cark up
+            #game.head.x > 70,  # NFZ Barrow right
+            #game.head.y < 520,  # NFZ Barrow up
+            game.isinnfz,
             ]
-
         return np.array(state, dtype=int)
         #return np.array(state, dtype=float)
 
@@ -103,7 +113,7 @@ class Agent:
     def get_action(self, state,max_score=1):
         # random moves: tradeoff exploration / exploitation
         #self.epsilon = tradeoff - self.n_games
-        self.epsilon = 50*np.exp(-max_score/20)
+        self.epsilon = 50*np.exp(-max_score/10)
         final_move = [0,0,0]
         if random.randint(0, 100) < self.epsilon:
             move = random.randint(0, 2)
@@ -129,8 +139,8 @@ def train():
     record_reward = -300
 
     # Counterhow
-    i = 0
-    imax = 300
+    #i = 0
+    #imax = 300
 
     agent = Agent()
     game = DroneGameAI()
@@ -192,11 +202,11 @@ def train():
             # Plotting.
             plot(plot_scores, plot_mean_scores)
 
-            i += 1
-            if i > imax:
-                np.save(f'scores_imax{imax}.npy', plot_scores)
-                np.save(f'rewards_imax{imax}.npy', plot_rewards)
-                break
+            #i += 1
+            #if i > imax:
+            #    np.save(f'scores_imax{imax}.npy', plot_scores)
+            #    np.save(f'rewards_imax{imax}.npy', plot_rewards)
+            #    break
 
 
 if __name__ == '__main__':

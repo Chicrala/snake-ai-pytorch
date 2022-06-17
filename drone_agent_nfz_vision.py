@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 #from drone_game_simple import DroneGameAI, Direction, Point
 from drone_game_nfz_vision import DroneGameAI, Direction, Point
-from drone_model_experiments import QTrainer,DVision
+from drone_model_vision import QTrainer,DVision
 from helper import plot
 from os import environ
 import pickle
@@ -46,10 +46,10 @@ class Agent:
         else:
             mini_sample = self.memory
 
-        #states, actions, rewards, next_states, dones = zip(*mini_sample)
-        states, actions, rewards, next_states,dones = map(np.array, zip(*mini_sample))
-        self.trainer.train_step(states, actions, rewards, next_states, dones)
-        #for state, action, reward, nexrt_state, done in mini_sample:
+        states, actions, rewards, next_states, dones = zip(*mini_sample)
+        #states, actions, rewards, next_states,dones = map(np.array, zip(*mini_sample))
+
+        #for state, action, reward, next_state, done in mini_sample:
         #    self.trainer.train_step(state, action, reward, next_state, done)
 
     def train_short_memory(self, state, action, reward, next_state, done):

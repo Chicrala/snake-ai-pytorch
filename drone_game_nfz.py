@@ -64,6 +64,10 @@ class DroneGameAI:
 
         # This might be redundant now.
         self.head = Point(200, 400)
+        #self.head = Point(random.randint(0,700), random.randint(0,900))
+        while self.in_nfz():
+            self.head = Point(random.randint(0, 700), random.randint(0, 900))
+
         self.snake = [self.head]
         self.fuel = 100
         self.score = 0
@@ -79,6 +83,7 @@ class DroneGameAI:
         self.distance_to_heyshan = np.sqrt((self.head.x - nfz_heyshan[0]) ** 2 + (self.head.y - nfz_heyshan[1]) ** 2)
         self.distance_to_cark = np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2)
         self.distance_to_barrow = np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2)
+        self.isinnfz = self.in_nfz()
 
     def _place_food(self):
         x = random.randint(0,len(HOSPITALS)-1)
@@ -125,7 +130,14 @@ class DroneGameAI:
             self.acc_reward += reward
             # Reward
 
-
+        if self.in_nfz():
+            reward = -10
+            self.acc_reward += reward
+            self.isinnfz = True
+        else:
+            #reward = 1
+            #self.acc_reward +=reward
+            self.isinnfz = False
 
         # 3. check if a collision happened.
         reward = 0
@@ -157,13 +169,15 @@ class DroneGameAI:
 
         # 4. place new food/refuel or just move
         if self.head == self.food:
-            reward = 10 + self.fuel
+            reward = 10 + 5*self.fuel
             self.acc_reward += reward
             self.fuel = 100
             self.score += 1
             self._place_food()
             # Recalculate distance?
             self._distance_to_food()
+            #game_over = True
+            #return reward, game_over, self.score
 
         else:
             # Calculate distance to food.
@@ -201,16 +215,27 @@ class DroneGameAI:
         # 6. return game over and score
         return reward, game_over, self.score
 
+    def in_nfz(self):
+        conditions = [
+            np.sqrt((self.head.x - nfz_heyshan[0]) ** 2 + (self.head.y - nfz_heyshan[1]) ** 2) < 40,
+            np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2) < 70,
+            np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2) < 50
+        ]
+        if any(conditions):
+            return True
+        else:
+            return False
+
     def danger_zone(self):
         # hits boundary
         conditions = [
             self.head.x+DG_RADIUS > self.w - BLOCK_SIZE,
-            self.head.x+DG_RADIUS < 0,
+            self.head.x-DG_RADIUS < 0,
             self.head.y+DG_RADIUS > self.h - BLOCK_SIZE,
-            self.head.y < 0,
+            self.head.y-DG_RADIUS < 0,
             np.sqrt((self.head.x - nfz_heyshan[0]) ** 2 + (self.head.y - nfz_heyshan[1]) ** 2)-DG_RADIUS < 40,
-            np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2)-DG_RADIUS < 80,
-            np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2)-DG_RADIUS < 60
+            np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2)-DG_RADIUS < 70,
+            np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2)-DG_RADIUS < 50
         ]
 
         if any(conditions):
@@ -224,9 +249,25 @@ class DroneGameAI:
             self.head.x > self.w - BLOCK_SIZE,
             self.head.x < 0, self.head.y > self.h - BLOCK_SIZE,
             self.head.y < 0,
+            #np.sqrt((self.head.x - nfz_heyshan[0]) ** 2 + (self.head.y - nfz_heyshan[1]) ** 2) < 40,
+            #np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2) < 70,
+            #np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2) < 50
+        ]
+
+        if any(conditions):
+            return True
+        else:
+            return False
+
+    def heading_to_danger(self, pt=None):
+        # hits boundary
+        conditions = [
+            self.head.x > self.w - BLOCK_SIZE,
+            self.head.x < 0, self.head.y > self.h - BLOCK_SIZE,
+            self.head.y < 0,
             np.sqrt((self.head.x - nfz_heyshan[0]) ** 2 + (self.head.y - nfz_heyshan[1]) ** 2) < 40,
-            np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2) < 80,
-            np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2) < 60
+            np.sqrt((self.head.x - nfz_cark[0]) ** 2 + (self.head.y - nfz_cark[1]) ** 2) < 70,
+            np.sqrt((self.head.x - nfz_barrow[0]) ** 2 + (self.head.y - nfz_barrow[1]) ** 2) < 50
         ]
 
         if any(conditions):
@@ -250,8 +291,8 @@ class DroneGameAI:
         self.display.blit(text,[MOTHER_BASE[0]-10,MOTHER_BASE[1]-25])
 
         pygame.draw.circle(surface=self.display, color=RED, center=nfz_heyshan, radius=40, width=1)
-        pygame.draw.circle(surface=self.display, color=RED, center=nfz_cark, radius=80, width=1)
-        pygame.draw.circle(surface=self.display, color=RED, center=nfz_barrow, radius=60, width=1)
+        pygame.draw.circle(surface=self.display, color=RED, center=nfz_cark, radius=70, width=1)
+        pygame.draw.circle(surface=self.display, color=RED, center=nfz_barrow, radius=50, width=1)
 
         pygame.draw.circle(surface=self.display, color=WHITE,
                            center=[self.head.x+BLOCK_SIZE/2,self.head.y+BLOCK_SIZE/2],

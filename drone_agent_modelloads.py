@@ -11,7 +11,8 @@ class Agent:
     def __init__(self):
         self.n_games = 0
         #self.model = pickle.load(open("./model/newmodel.sav", "rb"))
-        self.model = pickle.load(open("./model/ggmodel.sav", "rb"))
+        #self.model = pickle.load(open("./model/ggmodel.sav", "rb"))
+        self.model = pickle.load(open("./model/nfzmodel_s30.sav", "rb"))
 
 
     def get_state(self, game):
@@ -52,6 +53,7 @@ class Agent:
             dir_u,
             dir_d,
 
+            game.danger,
             #game.fuel,
             # Food location 
             #game.food.x < game.head.x,  # food left
