@@ -46,8 +46,8 @@ SPEED = 80
 DG_RADIUS = 15
 
 class DroneGameAI:
-    
-    def __init__(self, w=931, h=783):
+    # 931 783
+    def __init__(self, w=930, h=780):
         self.w = w
         self.h = h
         self.nfz_maps = NoFlyMapper().no_fly_zone

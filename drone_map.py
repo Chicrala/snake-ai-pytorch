@@ -1,7 +1,8 @@
 import numpy as np
 import itertools
 
-ws = [783,931]
+#ws = [783,931]
+ws = [780,930]
 
 class MovingMapper():
 

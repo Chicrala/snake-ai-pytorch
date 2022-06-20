@@ -47,7 +47,7 @@ DG_RADIUS = 15
 
 class DroneGame:
     
-    def __init__(self, w=931, h=783):
+    def __init__(self, w=930, h=780):
         self.w = w
         self.h = h
         # init display

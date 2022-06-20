@@ -1,6 +1,5 @@
 import torch
 import random
-import numpy as np
 from collections import deque
 #from drone_game_simple import DroneGameAI, Direction, Point
 from drone_game_nfz_vision import DroneGameAI, Direction, Point
@@ -9,11 +8,12 @@ from helper import plot
 from os import environ
 import pickle
 import numpy as np
+import cv2
 
 environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 MAX_MEMORY = 1000000#100_000
-BATCH_SIZE = 1000 #1000
+BATCH_SIZE = 10000 #1000
 LR = 0.001 #df 0.001
 BLOCK_SIZE = 5 # 20
 
@@ -30,11 +30,16 @@ class Agent:
 
     def get_state(self, game):
 
-        state = [game.nfz_maps + 2*game.dronepositionmap + 3*game.foodmap]
+        #state = np.array([game.nfz_maps + 2*game.dronepositionmap + 3*game.foodmap])
+        state = np.array([cv2.resize(game.nfz_maps,(93,78)) + 2 * cv2.resize(game.dronepositionmap,(93,78)) + 3 * cv2.resize(game.foodmap,(93,78))])
         #print('nfz shape:', np.shape(game.nfz_maps))
         #print('droneposmap shape:', np.shape(game.dronepositionmap))
         #print('foodmap shape:', np.shape(game.foodmap))
+        #print('state shape:', np.shape(state))
         #state = np.stack([game.nfz_maps, game.dronepositionmap, game.foodmap])
+        #state = state.reshape(1, state.shape[0],state.shape[1])
+        #print('state shape:', np.shape(state))
+        #state = cv2.resize(state,(93,78))
         return state
 
     def remember(self, state, action, reward, next_state, done):
@@ -48,6 +53,7 @@ class Agent:
 
         states, actions, rewards, next_states, dones = zip(*mini_sample)
         #states, actions, rewards, next_states,dones = map(np.array, zip(*mini_sample))
+        #print('States Shape: ',np.shape(states))
 
         #for state, action, reward, next_state, done in mini_sample:
         #    self.trainer.train_step(state, action, reward, next_state, done)
@@ -63,7 +69,7 @@ class Agent:
         if random.randint(0, 100) < self.epsilon:
             move = random.randint(0, 2)
             final_move[move] = 1
-            print('random move >>>>>', move)
+            #print('random move >>>>>', move)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state0)
@@ -71,7 +77,7 @@ class Agent:
             #move = torch.argmax(prediction).item()
             move = (prediction==torch.max(prediction)).nonzero()[0][1]
             final_move[move] = 1
-            print('real move >>>>>',move)
+            #print('real move >>>>>',move)
 
         return final_move
 
